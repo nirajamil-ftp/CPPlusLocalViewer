@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Neeraj'Cams",
+    "slug": "neeraj-cams",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nirajamil.CPPlusLocalViewer"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.nirajamil.CPPlusLocalViewer"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "react-native-vlc-media-player"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7a0f3323-e398-40d8-832b-fc9eb721adfa"
+      }
+    }
+  }
+}

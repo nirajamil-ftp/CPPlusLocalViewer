@@ -1,0 +1,1 @@
+bash: line 1: 34154 Killed                  ffmpeg -rtsp_transport tcp -i "rtsp://10.93.232.99:5543/live/channel0" -an -c:v mjpeg -f mpjpeg -listen 1 http://0.0.0.0:8080 > ffmpeg_debug.log 2>&1
