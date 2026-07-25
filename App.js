@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Modal } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 export default function App() {
@@ -8,6 +8,12 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [signalStrength, setSignalStrength] = useState('Checking...');
+  const [diagnosticLogs, setDiagnosticLogs] = useState([]);
+
+  const addLog = (message) => {
+    const time = new Date().toLocaleTimeString();
+    setDiagnosticLogs(prev => [`[${time}] ${message}`, ...prev.slice(0, 15)]);
+  };
 
   useEffect(() => {
     let timer;
@@ -21,21 +27,25 @@ export default function App() {
 
   useEffect(() => {
     const checkConnection = async () => {
+      addLog('Pinging server...');
       try {
         const start = Date.now();
         const response = await fetch(serverUrl, { method: 'HEAD' });
         const latency = Date.now() - start;
         if (response.ok) {
           setIsConnected(true);
-          if (latency < 100) setSignalStrength('Excellent (Strong Wi-Fi)');
-          else if (latency < 300) setSignalStrength('Good (Stable)');
-          else setSignalStrength('Weak (High Latency)');
+          addLog(`Success! Latency: ${latency}ms`);
+          if (latency < 100) setSignalStrength(`Excellent (${latency}ms)`);
+          else if (latency < 300) setSignalStrength(`Good (${latency}ms)`);
+          else setSignalStrength(`Weak (${latency}ms)`);
         } else {
           setIsConnected(false);
+          addLog(`Server responded with status: ${response.status}`);
           setSignalStrength('Disconnected');
         }
       } catch (error) {
         setIsConnected(false);
+        addLog(`Connection Error: ${error.message}`);
         setSignalStrength('No Connection');
       }
     };
@@ -62,7 +72,7 @@ export default function App() {
           style={styles.helpButton} 
           onPress={() => setShowHelp(true)}
         >
-          <Text style={styles.helpText}>❓ Help</Text>
+          <Text style={styles.helpText}>❓ Diagnostics & Help</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.toggleButton} 
@@ -110,7 +120,7 @@ export default function App() {
       >
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Connection & Help Guide</Text>
+            <Text style={styles.modalTitle}>Connection Diagnostics & Guide</Text>
             
             <View style={styles.statusBox}>
               <Text style={styles.statusLabel}>Connection Status:</Text>
@@ -120,14 +130,20 @@ export default function App() {
             </View>
 
             <View style={styles.statusBox}>
-              <Text style={styles.statusLabel}>Signal Strength:</Text>
+              <Text style={styles.statusLabel}>Signal / Latency:</Text>
               <Text style={styles.statusValue}>{signalStrength}</Text>
             </View>
 
+            <Text style={styles.guideTitle}>Live Diagnostic Logs:</Text>
+            <ScrollView style={styles.logsContainer}>
+              {diagnosticLogs.map((log, index) => (
+                <Text key={index} style={styles.logText}>{log}</Text>
+              ))}
+            </ScrollView>
+
             <Text style={styles.guideTitle}>Wi-Fi Setup Guide:</Text>
-            <Text style={styles.guideText}>1. Ensure your phone is connected to the same local Wi-Fi router as your PC/Server.</Text>
-            <Text style={styles.guideText}>2. Verify that the Python streaming server is running on IP: 10.25.78.88:8080.</Text>
-            <Text style={styles.guideText}>3. If connection fails, restart stream.py on your PC and check firewall settings.</Text>
+            <Text style={styles.guideText}>1. Connect phone and PC to the same local Wi-Fi.</Text>
+            <Text style={styles.guideText}>2. Verify server IP: http://10.25.78.88:8080</Text>
 
             <TouchableOpacity 
               style={styles.closeButton} 
@@ -149,7 +165,7 @@ const styles = StyleSheet.create({
   toggleButton: { backgroundColor: 'rgba(0,0,0,0.6)', padding: 10, borderRadius: 25, borderWidth: 1, borderColor: '#fff' },
   toggleText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   helpButton: { backgroundColor: 'rgba(0,123,255,0.8)', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#fff' },
-  helpText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  helpText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   overlayContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 5 },
   title: { fontSize: 20, color: '#fff', fontWeight: 'bold', marginBottom: 15 },
   controlsGroup: { alignItems: 'center', marginBottom: 15 },
@@ -159,13 +175,15 @@ const styles = StyleSheet.create({
   zoomButton: { backgroundColor: 'rgba(0,123,255,0.9)', paddingVertical: 8, paddingHorizontal: 15, marginHorizontal: 5, borderRadius: 5, borderWidth: 1, borderColor: '#fff' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   modalBackground: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalContainer: { width: '85%', backgroundColor: '#222', borderRadius: 10, padding: 20, borderWidth: 1, borderColor: '#444' },
-  modalTitle: { fontSize: 20, color: '#fff', fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-  statusBox: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#333', padding: 10, borderRadius: 5, marginBottom: 10 },
-  statusLabel: { color: '#ccc', fontSize: 14 },
-  statusValue: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  guideTitle: { fontSize: 16, color: '#fff', fontWeight: 'bold', marginTop: 10, marginBottom: 5 },
-  guideText: { color: '#aaa', fontSize: 13, marginBottom: 5, lineHeight: 18 },
-  closeButton: { backgroundColor: '#dc3545', padding: 10, borderRadius: 5, marginTop: 15, alignItems: 'center' },
-  closeButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  modalContainer: { width: '90%', maxHeight: '85%', backgroundColor: '#222', borderRadius: 10, padding: 15, borderWidth: 1, borderColor: '#444' },
+  modalTitle: { fontSize: 18, color: '#fff', fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  statusBox: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#333', padding: 8, borderRadius: 5, marginBottom: 8 },
+  statusLabel: { color: '#ccc', fontSize: 13 },
+  statusValue: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
+  guideTitle: { fontSize: 14, color: '#fff', fontWeight: 'bold', marginTop: 8, marginBottom: 4 },
+  guideText: { color: '#aaa', fontSize: 12, marginBottom: 3 },
+  logsContainer: { backgroundColor: '#111', height: 100, padding: 6, borderRadius: 5, marginBottom: 8, borderWidth: 1, borderColor: '#333' },
+  logText: { color: '#0ff', fontSize: 11, fontFamily: 'monospace', marginBottom: 2 },
+  closeButton: { backgroundColor: '#dc3545', padding: 10, borderRadius: 5, marginTop: 10, alignItems: 'center' },
+  closeButtonText: { color: '#fff', fontSize: 15, fontWeight: 'bold' }
 });
