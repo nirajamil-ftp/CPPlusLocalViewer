@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 export default function App() {
-  const serverUrl = 'http://192.168.1.100:8080';
+  const serverUrl = 'http://10.25.78.246:8080';
   const [showControls, setShowControls] = useState(false);
 
   useEffect(() => {
