@@ -4,15 +4,12 @@
   "main": "index.js",
   "dependencies": {
     "expo": "~57.0.8",
-    "expo-camera": "~57.0.3",
-    "expo-media-library": "~57.0.3",
-    "expo-network": "~57.0.1",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.0",
-    "react-native-vlc-media-player": "^1.0.98",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "^13.12.5"
   },
   "scripts": {
     "start": "expo start",
