@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Neeraj'Cams",
-    "slug": "neeraj-cams",
+    "name": "CP Plus Viewer",
+    "slug": "cp-plus-viewer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,26 +12,16 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#000000"
       },
       "package": "com.nirajamil.CPPlusLocalViewer"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "react-native-vlc-media-player"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "7a0f3323-e398-40d8-832b-fc9eb721adfa"
-      }
-    },
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     }
