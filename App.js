@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, Modal, ScrollView } from 'rea
 import { WebView } from 'react-native-webview';
 
 export default function App() {
-  const serverUrl = 'http://10.216.218.99:8080';
+  const serverUrl = 'http://10.25.78.88:8080';
   const [showControls, setShowControls] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -143,7 +143,7 @@ export default function App() {
 
             <Text style={styles.guideTitle}>Wi-Fi Setup Guide:</Text>
             <Text style={styles.guideText}>1. Connect phone and PC to the same local Wi-Fi.</Text>
-            <Text style={styles.guideText}>2. Verify server IP: http://10.216.218.99:8080</Text>
+            <Text style={styles.guideText}>2. Verify server IP: http://10.25.78.88:8080</Text>
 
             <TouchableOpacity 
               style={styles.closeButton} 
