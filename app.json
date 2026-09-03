@@ -2,7 +2,7 @@
   "expo": {
     "name": "CP Plus Viewer",
     "slug": "cp-plus-viewer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,6 +11,8 @@
       "bundleIdentifier": "com.nirajamil.CPPlusLocalViewer"
     },
     "android": {
+      "versionCode": 2,
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#000000"
