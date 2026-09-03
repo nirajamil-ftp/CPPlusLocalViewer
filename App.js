@@ -9,6 +9,8 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [signalStrength, setSignalStrength] = useState('Checking...');
   const [diagnosticLogs, setDiagnosticLogs] = useState([]);
+  const [webViewKey, setWebViewKey] = useState(0);
+  const [webViewError, setWebViewError] = useState(null);
 
   const addLog = (message) => {
     const time = new Date().toLocaleTimeString();
@@ -59,13 +61,43 @@ export default function App() {
     console.log(`PTZ Action: ${action}`);
   };
 
+  const retryWebView = () => {
+    setWebViewError(null);
+    setWebViewKey((currentKey) => currentKey + 1);
+  };
+
   return (
     <View style={styles.container}>
       <WebView
+        key={webViewKey}
         source={{ uri: serverUrl }}
         style={styles.webview}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
+        onLoadStart={() => setWebViewError(null)}
+        onLoadEnd={() => setWebViewError(null)}
+        onError={({ nativeEvent }) => {
+          const detail = nativeEvent?.description || nativeEvent?.domain || 'Unknown WebView error';
+          setWebViewError(detail);
+          addLog(`Camera page error: ${detail}`);
+        }}
+        onHttpError={({ nativeEvent }) => {
+          addLog(`Camera server HTTP error: ${nativeEvent.statusCode}`);
+        }}
+        renderError={() => (
+          <View style={styles.errorState}>
+            <Text style={styles.errorTitle}>Unable to load camera page</Text>
+            <Text style={styles.errorMessage}>
+              Confirm that your phone and camera server are on the same Wi-Fi network.
+            </Text>
+            <Text style={styles.errorDetail}>
+              {webViewError || `Server: ${serverUrl}`}
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={retryWebView}>
+              <Text style={styles.retryButtonText}>Retry connection</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       />
       <View style={styles.topBar}>
         <TouchableOpacity 
@@ -161,6 +193,12 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   webview: { flex: 1, backgroundColor: '#000' },
+  errorState: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  errorTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
+  errorMessage: { color: '#ccc', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 12 },
+  errorDetail: { color: '#999', fontSize: 12, textAlign: 'center', marginBottom: 18 },
+  retryButton: { backgroundColor: '#007bff', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 },
+  retryButtonText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
   topBar: { position: 'absolute', top: 40, right: 20, left: 20, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
   toggleButton: { backgroundColor: 'rgba(0,0,0,0.6)', padding: 10, borderRadius: 25, borderWidth: 1, borderColor: '#fff' },
   toggleText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
