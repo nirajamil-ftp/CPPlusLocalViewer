@@ -1,14 +1,114 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import { 
+  StyleSheet, 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  TextInput, 
+  Modal, 
+  ScrollView, 
+  Dimensions, 
+  Alert 
+} from 'react-native';
 import Video from 'react-native-video';
 import * as Updates from 'expo-updates';
 
-const STREAM_URL = "rtsp://admin:krishna2547@192.168.1.100:5543/live/channel0";
-
 export default function App() {
+  // डिफॉल्ट कैमरा लिस्ट
+  const [cameras, setCameras] = useState([
+    {
+      id: '1',
+      name: 'CP Plus Cam 1',
+      ip: '192.168.1.100',
+      onvifIp: '192.168.1.100',
+      port: '5543',
+      username: 'admin',
+      password: 'krishna2547',
+      channel: 'live/channel0'
+    }
+  ]);
+
+  const [selectedCamIndex, setSelectedCamIndex] = useState(0);
   const [status, setStatus] = useState("कनेक्ट हो रहा है...");
   const [updating, setUpdating] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
+  // फॉर्म के स्टेट्स
+  const [camName, setCamName] = useState('');
+  const [ip, setIp] = useState('');
+  const [onvifIp, setOnvifIp] = useState('');
+  const [port, setPort] = useState('5543');
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('');
+  const [channel, setChannel] = useState('live/channel0');
+  const [editingId, setEditingId] = useState(null);
+
+  const activeCam = cameras[selectedCamIndex] || cameras[0];
+  const streamUrl = `rtsp://${activeCam.username}:${activeCam.password}@${activeCam.ip}:${activeCam.port}/${activeCam.channel}`;
+
+  // सेटिंग्स मॉडल खोलें (मौजूदा एडिट करने के लिए)
+  const openEditModal = () => {
+    setEditingId(activeCam.id);
+    setCamName(activeCam.name);
+    setIp(activeCam.ip);
+    setOnvifIp(activeCam.onvifIp || activeCam.ip);
+    setPort(activeCam.port);
+    setUsername(activeCam.username);
+    setPassword(activeCam.password);
+    setChannel(activeCam.channel);
+    setModalVisible(true);
+  };
+
+  // नया कैमरा जोड़ने का मॉडल खोलें
+  const openAddModal = () => {
+    setEditingId(null);
+    setCamName(`Cam ${cameras.length + 1}`);
+    setIp('192.168.1.101');
+    setOnvifIp('192.168.1.101');
+    setPort('5543');
+    setUsername('admin');
+    setPassword('krishna2547');
+    setChannel('live/channel0');
+    setModalVisible(true);
+  };
+
+  // सेटिंग्स सेव करें
+  const saveCameraSettings = () => {
+    if (!ip || !username || !password) {
+      Alert.alert("एरर", "कृपया IP, Username और Password सही से भरें");
+      return;
+    }
+
+    if (editingId) {
+      // एडिट करें
+      const updated = cameras.map(cam => {
+        if (cam.id === editingId) {
+          return { ...cam, name: camName, ip, onvifIp, port, username, password, channel };
+        }
+        return cam;
+      });
+      setCameras(updated);
+    } else {
+      // नया जोड़ें
+      const newCam = {
+        id: Date.now().toString(),
+        name: camName,
+        ip,
+        onvifIp,
+        port,
+        username,
+        password,
+        channel
+      };
+      setCameras([...cameras, newCam]);
+      setSelectedCamIndex(cameras.length);
+    }
+
+    setModalVisible(false);
+    setStatus("कैमरा कॉन्फ़िगरेशन अपडेट हुआ 🟢");
+  };
+
+  // OTA अपडेट चेक करें
   const onCheckUpdate = async () => {
     try {
       setUpdating(true);
@@ -29,15 +129,43 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.statusText}>स्थिति: {status}</Text>
+      {/* हेडर और कैमरा सेलेक्टर */}
+      <View style={styles.header}>
+        <Text style={styles.title}>CP Plus Viewer</Text>
+        <TouchableOpacity style={styles.settingsBtn} onPress={openEditModal}>
+          <Text style={styles.btnTextText}>⚙️ सेटिंग्स</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* कैमरा स्विच टैब्स */}
+      <ScrollView horizontal style={styles.camSelector} showsHorizontalScrollIndicator={false}>
+        {cameras.map((cam, index) => (
+          <TouchableOpacity
+            key={cam.id}
+            style={[styles.camTab, selectedCamIndex === index && styles.activeTab]}
+            onPress={() => setSelectedCamIndex(index)}
+          >
+            <Text style={styles.camTabText}>{cam.name}</Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity style={styles.addTab} onPress={openAddModal}>
+          <Text style={styles.addTabText}>+ नया जोड़ें</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* लाइव वीडियो प्लेयर */}
+      <Text style={styles.statusText}>
+        {activeCam.name} ({activeCam.ip}) - {status}
+      </Text>
 
       <Video
-        source={{ uri: STREAM_URL, type: 'rtsp' }}
+        key={streamUrl}
+        source={{ uri: streamUrl, type: 'rtsp' }}
         style={styles.fullVideo}
         controls={false}
         resizeMode="contain"
         onLoad={() => setStatus("लाइव फ़ीड चालू है 🟢")}
-        onError={(e) => setStatus("कनेक्शन एरर: कैमरा नेटवर्क जाँचें")}
+        onError={() => setStatus("कनेक्शन एरर: IP या नेटवर्क जाँचें")}
         useTextureView={true}
         bufferConfig={{
           minBufferMs: 100,
@@ -47,6 +175,7 @@ export default function App() {
         }}
       />
 
+      {/* बॉटम अपडेट बटन */}
       <TouchableOpacity 
         style={styles.updateButton} 
         onPress={onCheckUpdate}
@@ -56,20 +185,76 @@ export default function App() {
           {updating ? "चेक हो रहा है..." : "🔄 Pull / Check Update"}
         </Text>
       </TouchableOpacity>
+
+      {/* सेटिंग्स / नया कैमरा मॉडल */}
+      <Modal visible={modalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <ScrollView style={{ width: '100%' }}>
+              <Text style={styles.modalTitle}>
+                {editingId ? "कैमरा/नेटवर्क सेटिंग्स एडिट करें" : "नया कैमरा जोड़ें"}
+              </Text>
+
+              <Text style={styles.label}>कैमरा का नाम:</Text>
+              <TextInput style={styles.input} value={camName} onChangeText={setCamName} placeholder="Main Gate" placeholderTextColor="#666" />
+
+              <Text style={styles.label}>कैमरा IP Address:</Text>
+              <TextInput style={styles.input} value={ip} onChangeText={setIp} placeholder="192.168.1.100" keyboardType="numeric" placeholderTextColor="#666" />
+
+              <Text style={styles.label}>ONVIF IP Address:</Text>
+              <TextInput style={styles.input} value={onvifIp} onChangeText={setOnvifIp} placeholder="192.168.1.100" keyboardType="numeric" placeholderTextColor="#666" />
+
+              <Text style={styles.label}>RTSP Port:</Text>
+              <TextInput style={styles.input} value={port} onChangeText={setPort} placeholder="5543" keyboardType="numeric" placeholderTextColor="#666" />
+
+              <Text style={styles.label}>Username:</Text>
+              <TextInput style={styles.input} value={username} onChangeText={setUsername} placeholder="admin" placeholderTextColor="#666" />
+
+              <Text style={styles.label}>Password:</Text>
+              <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry={true} placeholder="krishna2547" placeholderTextColor="#666" />
+
+              <Text style={styles.label}>Stream Channel Path:</Text>
+              <TextInput style={styles.input} value={channel} onChangeText={setChannel} placeholder="live/channel0" placeholderTextColor="#666" />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={saveCameraSettings}>
+                  <Text style={styles.btnTextText}>सेव करें</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.btnTextText}>रद्द करें</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
-  statusText: { color: '#00FF00', fontSize: 14, marginBottom: 10 },
-  fullVideo: { width: Dimensions.get('window').width, height: 250 },
-  updateButton: {
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#1E88E5',
-    borderRadius: 8,
-  },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: '#121212', paddingTop: 40, alignItems: 'center' },
+  header: { flexDirection: 'row', width: '90%', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  title: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  settingsBtn: { backgroundColor: '#333', padding: 8, borderRadius: 6 },
+  camSelector: { maxHeight: 40, width: '90%', marginBottom: 10 },
+  camTab: { backgroundColor: '#222', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
+  activeTab: { backgroundColor: '#1E88E5' },
+  camTabText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  addTab: { backgroundColor: '#2E7D32', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
+  addTabText: { color: '#FFF', fontSize: 13, fontWeight: 'bold' },
+  statusText: { color: '#00FF00', fontSize: 12, marginBottom: 10, textAlign: 'center' },
+  fullVideo: { width: Dimensions.get('window').width, height: 240, backgroundColor: '#000' },
+  updateButton: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 24, backgroundColor: '#1E88E5', borderRadius: 8 },
+  buttonText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
+  modalContainer: { width: '88%', maxHeight: '80%', backgroundColor: '#1E1E1E', borderRadius: 12, padding: 20 },
+  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
+  label: { color: '#BBB', fontSize: 12, marginTop: 8 },
+  input: { backgroundColor: '#2A2A2A', color: '#FFF', padding: 10, borderRadius: 6, marginTop: 4, fontSize: 14 },
+  modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
+  actionBtn: { flex: 1, padding: 12, borderRadius: 6, alignItems: 'center', marginHorizontal: 5 },
+  saveBtn: { backgroundColor: '#2E7D32' },
+  cancelBtn: { backgroundColor: '#D32F2F' },
+  btnTextText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 }
 });
