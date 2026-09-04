@@ -2,7 +2,7 @@
   "expo": {
     "name": "CP Plus Viewer",
     "slug": "cp-plus-viewer",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,7 +11,7 @@
       "bundleIdentifier": "com.nirajamil.CPPlusLocalViewer"
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 4,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -36,6 +36,9 @@
       "policy": "appVersion"
     },
     "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/6672fccb-eacf-4a1e-84e0-19bbe685318b"
     }
   }

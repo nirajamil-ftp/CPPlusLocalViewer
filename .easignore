@@ -1,0 +1,10 @@
+node_modules/
+.git/
+.expo/
+android/
+ios/
+venv/
+CPPlusViewer/
+dist/
+*.apk
+*.zip

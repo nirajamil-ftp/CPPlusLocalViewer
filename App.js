@@ -18,7 +18,7 @@ export default function App() {
   const [cameras, setCameras] = useState([
     {
       id: '1',
-      name: 'CP Plus Cam 1',
+      name: '🎥 CP Plus Cam 1',
       ip: '192.168.1.100',
       onvifIp: '192.168.1.100',
       port: '5543',
@@ -125,12 +125,224 @@ export default function App() {
     }
   };
 
+  
+  // PTZ Control Logic (Start & Stop)
+  const sendPTZCommand = async (command, stop = false) => {
+    try {
+      const action = stop ? 'stop' : 'start';
+      const auth = typeof btoa !== 'undefined' ? btoa(`${camUser}:${camPass}`) : '';
+      const ptzUrl = `http://${camIp}/cgi-bin/ptz.cgi?action=${action}&channel=1&code=${command}&arg1=0&arg2=8&arg3=0`;
+      await fetch(ptzUrl, {
+        method: 'GET',
+        headers: { 'Authorization': 'Basic ' + auth }
+      });
+    } catch (e) {
+      console.log('PTZ Error:', e);
+    }
+  };
+
+  // Playback / Recording Toggle
+  const [isPlayback, setIsPlayback] = useState(false);
+  const togglePlayback = () => setIsPlayback(!isPlayback);
+
+  // Remove Camera Function (Locked Default Camera Check)
+  const removeCamera = (id) => {
+    const camToDel = cameras?.find(c => c.id === id);
+    if (id === 1 || id === "1" || id === "default" || camToDel?.isLocked) {
+      alert("यह डिफ़ॉल्ट PTZ कैमरा लॉक है और इसे डिलीट नहीं किया जा सकता!");
+      return;
+    }
+    setCameras(prev => prev.filter(c => c.id !== id));
+    if (selectedCamId === id) {
+      setSelectedCamId(cameras.find(c => c.id !== id)?.id || null);
+    }
+  };
+
+  
+  // 1. मल्टीपल स्ट्रीम फॉलबैक यूआरएल (RTSP Substream -> RTSP Mainstream -> Port 80 -> HTTP MJPEG)
+  const getStreamUrls = (ip, user, pass) => [
+    `rtsp://${user}:${pass}@${ip}:554/cam/realmonitor?channel=1&subtype=1`, // Option 1: H.264 Substream (Fast)
+    `rtsp://${user}:${pass}@${ip}:554/cam/realmonitor?channel=1&subtype=1`, // Option 2: Mainstream
+    `rtsp://${user}:${pass}@${ip}:80/cam/realmonitor?channel=1&subtype=1`,  // Option 3: Port 80 HTTP Tunnel
+    `http://${ip}/cgi-bin/mjpg/video.cgi?channel=1`                        // Option 4: HTTP Fallback
+  ];
+
+  const [streamIndex, setStreamIndex] = useState(0);
+  const [isRealConnected, setIsRealConnected] = useState(false);
+  const [diagText, setDiagText] = useState('जांच जारी है...');
+
+  // 2. ऑटो-डायग्नोसिस और आईपी/नेटवर्क डिटेक्शन
+  const diagnoseNetworkAndCamera = async () => {
+    setDiagText('IP और पोर्ट की जांच हो रही है...');
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      const auth = typeof btoa !== 'undefined' ? btoa(`${camUser}:${camPass}`) : '';
+      const response = await fetch(`http://${camIp}/cgi-bin/magicBox.cgi?action=getSystemInfo`, {
+        signal: controller.signal,
+        headers: { 'Authorization': 'Basic ' + auth }
+      }).catch(() => null);
+
+      clearTimeout(timeoutId);
+
+      if (response && (response.status === 200 || response.status === 401)) {
+        setDiagText('IP/HTTP ठीक है, वीडियो स्ट्रीम सिंक हो रहा है...');
+      } else {
+        setDiagText('HTTP ब्लॉक है, RTSP डायरेक्ट फॉलबैक चालू किया जा रहा है...');
+      }
+    } catch (e) {
+      setDiagText('नेटवर्क पोर्ट्स की डायग्नोसिस चालू है...');
+    }
+  };
+
+  // 3. एक फ़ीड फेल होने पर ऑटोमैटिक अगला ऑप्शन स्विच करने वाला फ़ंक्शन
+  const handleStreamError = (e) => {
+    console.log(`Stream Option ${streamIndex + 1} Failed:`, e);
+    if (streamIndex < 3) {
+      setDiagText(`स्ट्रीम मोड ${streamIndex + 1} फेल, अगला मोड (${streamIndex + 2}) ट्राइ हो रहा है...`);
+      setStreamIndex(prev => prev + 1);
+    } else {
+      setIsRealConnected(false);
+      setDiagText('🔴 सभी 4 स्ट्रीम मोड फेल हो गए। कृपया IP या WiFi जांचें।');
+    }
+  };
+
+  const handleStreamSuccess = () => {
+    setIsRealConnected(true);
+    setDiagText('🟢 कैमरा सफलतापूर्वक कनेक्ट हो गया है!');
+  };
+
+  
+  // Wi-Fi और TP-Link राउटर कनेक्शन चेक लॉजिक
+  const [isWifiConnected, setIsWifiConnected] = useState(false);
+  const [wifiDiagnosis, setWifiDiagnosis] = useState("Wi-Fi स्टेटस जांचा जा रहा है...");
+
+  const checkWifiAndRouter = async () => {
+    try {
+      // 1. लोकल राउटर Ping/Fetch चेक (TP-Link Gateway Diagnostic)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      
+      const res = await fetch(`http://${camIp}/`, { signal: controller.signal }).catch(() => null);
+      clearTimeout(timeoutId);
+
+      if (res) {
+        setIsWifiConnected(true);
+        setWifiDiagnosis("🟢 TP-Link राउटर और कैमरा कनेक्टेड हैं!");
+      } else {
+        // पोर्ट/IP चेक फ़ैल होने पर ब्लॉक रखें
+        setIsWifiConnected(false);
+        setWifiDiagnosis("🔴 TP-Link Wi-Fi या कैमरा IP पहुंच से बाहर है! कृपया सही नेटवर्क से जुड़ें।");
+      }
+    } catch (e) {
+      setIsWifiConnected(false);
+      setWifiDiagnosis("🔴 Wi-Fi बंद है या आप गलत नेटवर्क पर हैं।");
+    }
+  };
+
+  useEffect(() => {
+    checkWifiAndRouter();
+    const interval = setInterval(checkWifiAndRouter, 5000); // हर 5 सेकंड में ऑटो चेक
+    
+  if (!isWifiConnected) {
+    
+  const getRtspUrl = (ip, user, pass, channel = 1, subtype = 1) => {
+    if (!ip) return '';
+    const cleanUser = encodeURIComponent(user || 'admin');
+    const cleanPass = encodeURIComponent(pass || 'admin123');
+    return `rtsp://${cleanUser}:${cleanPass}@${ip}:554/cam/realmonitor?channel=${channel}&subtype=${subtype}`;
+  };
+
+  return (
+      <View style={{ flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 22, color: '#fff', fontWeight: 'bold', marginBottom: 15 }}>🎥 CP Plus Viewer</Text>
+        
+        {/* डायग्नोसिस और नेटवर्क स्टेटस कार्ड */}
+        <View style={{ backgroundColor: '#1e1e1e', padding: 20, borderRadius: 10, width: '100%', marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#ff4444' }}>
+          <Text style={{ fontSize: 16, color: '#ffbb33', fontWeight: 'bold', marginBottom: 8 }}>🔍 सिस्टम डायग्नोसिस:</Text>
+          <Text style={{ color: '#fff', fontSize: 14, marginBottom: 10 }}>{wifiDiagnosis}</Text>
+          <Text style={{ color: '#888', fontSize: 12 }}>* जब तक TP-Link Wi-Fi कनेक्ट नहीं होगा, लाइव फ़ीड लॉक रहेगी।</Text>
+        </View>
+
+        {/* बाहर ही सेटिंग्स खोलने का विकल्प */}
+        <TouchableOpacity 
+          onPress={() => setShowSettings(true)}
+          style={{ backgroundColor: '#333', padding: 15, borderRadius: 8, flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>⚙️ कैमरा IP/नेटवर्क सेटिंग्स बदलें</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          onPress={checkWifiAndRouter}
+          style={{ backgroundColor: '#007bff', padding: 12, borderRadius: 8 }}>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>🔄 कनेक्शन पुनः जांचें</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  
+  const getRtspUrl = (ip, user, pass, channel = 1, subtype = 1) => {
+    if (!ip) return '';
+    const cleanUser = encodeURIComponent(user || 'admin');
+    const cleanPass = encodeURIComponent(pass || 'admin123');
+    return `rtsp://${cleanUser}:${cleanPass}@${ip}:554/cam/realmonitor?channel=${channel}&subtype=${subtype}`;
+  };
+
+  return () => clearInterval(interval);
+  }, [camIp]);
+
+  
+  if (!isWifiConnected) {
+    
+  const getRtspUrl = (ip, user, pass, channel = 1, subtype = 1) => {
+    if (!ip) return '';
+    const cleanUser = encodeURIComponent(user || 'admin');
+    const cleanPass = encodeURIComponent(pass || 'admin123');
+    return `rtsp://${cleanUser}:${cleanPass}@${ip}:554/cam/realmonitor?channel=${channel}&subtype=${subtype}`;
+  };
+
+  return (
+      <View style={{ flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 22, color: '#fff', fontWeight: 'bold', marginBottom: 15 }}>🎥 CP Plus Viewer</Text>
+        
+        {/* डायग्नोसिस और नेटवर्क स्टेटस कार्ड */}
+        <View style={{ backgroundColor: '#1e1e1e', padding: 20, borderRadius: 10, width: '100%', marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#ff4444' }}>
+          <Text style={{ fontSize: 16, color: '#ffbb33', fontWeight: 'bold', marginBottom: 8 }}>🔍 सिस्टम डायग्नोसिस:</Text>
+          <Text style={{ color: '#fff', fontSize: 14, marginBottom: 10 }}>{wifiDiagnosis}</Text>
+          <Text style={{ color: '#888', fontSize: 12 }}>* जब तक TP-Link Wi-Fi कनेक्ट नहीं होगा, लाइव फ़ीड लॉक रहेगी।</Text>
+        </View>
+
+        {/* बाहर ही सेटिंग्स खोलने का विकल्प */}
+        <TouchableOpacity 
+          onPress={() => setShowSettings(true)}
+          style={{ backgroundColor: '#333', padding: 15, borderRadius: 8, flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>⚙️ कैमरा IP/नेटवर्क सेटिंग्स बदलें</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          onPress={checkWifiAndRouter}
+          style={{ backgroundColor: '#007bff', padding: 12, borderRadius: 8 }}>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>🔄 कनेक्शन पुनः जांचें</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  
+  const getRtspUrl = (ip, user, pass, channel = 1, subtype = 1) => {
+    if (!ip) return '';
+    const cleanUser = encodeURIComponent(user || 'admin');
+    const cleanPass = encodeURIComponent(pass || 'admin123');
+    return `rtsp://${cleanUser}:${cleanPass}@${ip}:554/cam/realmonitor?channel=${channel}&subtype=${subtype}`;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>CP Plus Viewer</Text>
         <TouchableOpacity style={styles.settingsBtn} onPress={openSettingsModal}>
-          <Text style={styles.btnTextText}>⚙️ सेटिंग्स</Text>
+          <Text style={styles.btnTextText}>⚙️</Text>
         </TouchableOpacity>
       </View>
 
@@ -166,7 +378,7 @@ export default function App() {
           resizeMode="contain"
           muted={true}
           onLoad={() => setStatus("लाइव फ़ीड चालू है 🟢")}
-          onError={() => setStatus("कनेक्शन एरर: IP या नेटवर्क जाँचें")}
+          onError={handleStreamError}
           useTextureView={true}
           bufferConfig={{
             minBufferMs: 100,
