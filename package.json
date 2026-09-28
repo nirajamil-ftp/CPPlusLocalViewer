@@ -1,17 +1,20 @@
 {
   "name": "cppluslocalviewer",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "main": "index.js",
   "dependencies": {
-    "expo": "~57.0.8",
+    "@expo/vector-icons": "^15.0.2",
+    "expo": "~57.0.25",
+    "expo-file-system": "~57.0.6",
+    "expo-intent-launcher": "~57.0.1",
+    "expo-secure-store": "~57.0.3",
     "expo-status-bar": "~57.0.1",
-    "expo-updates": "~57.0.21",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-native": "0.86.0",
-    "react-native-video": "^6.19.2",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
     "react-native-web": "^0.21.2",
-    "react-native-webview": "^13.12.5"
+    "react-native-webview": "13.16.1"
   },
   "scripts": {
     "start": "expo start",
@@ -19,9 +22,5 @@
     "ios": "expo run:ios",
     "web": "expo start --web"
   },
-  "private": true,
-  "devDependencies": {
-    "@types/react": "~19.2.4",
-    "typescript": "~6.0.3"
-  }
+  "private": true
 }
